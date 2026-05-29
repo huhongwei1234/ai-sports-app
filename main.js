@@ -29,6 +29,15 @@ function createWindow() {
     const indexPath = path.join(__dirname, 'www', 'index.html');
     mainWindow.loadFile(indexPath);
 
+    // 版权声明弹窗
+    dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: '版权声明',
+        message: '本软件程序（界面、操作逻辑、打包方式）版权归 XLH 所有。相关技术接口及数据版权归原权利方所有。未经授权禁止破解、二次打包、移除版权声明。',
+        buttons: ['我知道了'],
+        defaultId: 0
+    });
+
     const menuTemplate = [
         {
             label: '文件',
@@ -399,15 +408,26 @@ ipcMain.handle('app:getDataPath', async () => {
     return path.dirname(photo.getPhotoDir());
 });
 
-// 动态读取应用配置
+// 动态读取应用配置（优先外部 resources 目录，支持用户自行替换）
 ipcMain.handle('app:getConfig', async () => {
-    const configPath = path.join(__dirname, 'config.json');
+    const externalConfigPath = path.join(process.resourcesPath, 'config.json');
+    const internalConfigPath = path.join(__dirname, 'config.json');
     try {
-        const data = fs.readFileSync(configPath, 'utf8');
+        const targetPath = fs.existsSync(externalConfigPath) ? externalConfigPath : internalConfigPath;
+        const data = fs.readFileSync(targetPath, 'utf8');
         return JSON.parse(data);
     } catch (e) {
-        return { schoolName: '实验小学' };
+        return { schoolName: '体育运动管理平台' };
     }
+});
+
+// 获取 logo 路径（优先外部 resources 目录）
+ipcMain.handle('app:getLogoPath', async () => {
+    const externalLogoPath = path.join(process.resourcesPath, 'logo.jpg');
+    if (fs.existsSync(externalLogoPath)) {
+        return 'res://logo.jpg';
+    }
+    return '../../logo.jpg';
 });
 
 app.whenReady().then(async () => {

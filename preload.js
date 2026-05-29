@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     isElectron: true,
     // config 改为异步 IPC 获取，preload 中不再直接读文件
     getConfig: () => ipcRenderer.invoke('app:getConfig'),
+    getLogoPath: () => ipcRenderer.invoke('app:getLogoPath'),
     getDataPath: () => ipcRenderer.invoke('app:getDataPath'),
 
     // 学生数据库 IPC
