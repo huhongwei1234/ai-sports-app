@@ -1,0 +1,3 @@
+#!/bin/bash
+cd /Users/a1/ai-sports-app
+exec /Users/a1/ai-sports-app/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron /Users/a1/ai-sports-app

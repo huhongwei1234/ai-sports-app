@@ -1,0 +1,46 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Rebuild native modules for Electron
+        run: npx electron-rebuild
+
+      - name: Append Windows config
+        shell: pwsh
+        run: |
+          $winConfig = @"
+
+          win:
+            target:
+              - target: nsis
+                arch: x64
+            artifactName: `${productName}-win.${ext}
+          "@
+          Add-Content -Path electron-builder.yml -Value $winConfig
+
+      - name: Build Windows exe
+        run: npx electron-builder --win --x64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI体育管理系统-win
+          path: dist/AI体育管理系统-win.exe

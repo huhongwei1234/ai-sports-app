@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>数据看板 - AI体育 | 智慧体育管理平台</title>
+    <link rel="stylesheet" href="common.css">
+    <style>
+        /* 扩展样式，保持原有common.css风格并增加动态看板元素 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: default;
+        }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+        .stat-title { font-size: 14px; color: #666; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+        .stat-value { font-size: 32px; font-weight: bold; color: #1e3c72; line-height: 1.2; }
+        .stat-unit { font-size: 14px; color: #999; margin-left: 5px; font-weight: normal; }
+        .stat-sub { font-size: 12px; color: #4caf50; margin-top: 6px; }
+        
+        .two-columns {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .sport-item { margin-bottom: 20px; }
+        .sport-info { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+        .progress-bar { height: 10px; background: #e0e0e0; border-radius: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, #4CAF50, #8BC34A); width: 0%; transition: width 0.5s ease; }
+        
+        .video-list { display: flex; flex-direction: column; gap: 15px; max-height: 380px; overflow-y: auto; padding-right: 4px; }
+        .video-item { display: flex; gap: 15px; padding: 12px; background: #f8f9fa; border-radius: 12px; cursor: pointer; transition: all 0.2s; align-items: center; }
+        .video-item:hover { background: #e8f0fe; transform: translateX(5px); }
+        .video-thumb { width: 100px; height: 70px; background: linear-gradient(135deg, #1e3c72, #2a5298); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 28px; flex-shrink: 0; }
+        .video-info h4 { font-size: 14px; margin-bottom: 4px; color: #1e2a3e; }
+        .video-info p { font-size: 11px; color: #6c7e9e; }
+        .empty-state { text-align: center; padding: 30px 20px; color: #8c9ab0; font-size: 13px; }
+        .loading-skeleton { background: #f0f2f6; border-radius: 12px; height: 70px; margin-bottom: 12px; animation: pulse 1.2s infinite; }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        
+        .recent-score-list { max-height: 420px; overflow-y: auto; border: 1px solid #edf2f7; border-radius: 12px; }
+        .score-row { display: flex; align-items: center; padding: 10px 12px; border-bottom: 1px solid #edf2f7; font-size: 12px; gap: 10px; flex-wrap: wrap; }
+        .score-row:last-child { border-bottom: none; }
+        .score-row:hover { background: #f8fafc; }
+        .score-uid { font-weight: bold; color: #1e3c72; min-width: 80px; }
+        .score-name { font-weight: 500; color: #1e3c72; min-width: 60px; }
+        .score-class { color: #5a6e85; min-width: 70px; font-size: 11px; }
+        .score-project { color: #2c6e9e; font-weight: 500; min-width: 80px; }
+        .score-value { margin-left: auto; }
+        .score-badge { background: #e8f0fe; border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 500; }
+        .score-badge.excellent { background: #d4edda; color: #2e7d32; }
+        .score-badge.good { background: #d1ecf1; color: #0c5460; }
+        .score-badge.pass { background: #fff3cd; color: #856404; }
+        .score-badge.fail { background: #f8d7da; color: #721c24; }
+        .score-time { color: #8c9ab0; font-size: 10px; margin-left: 6px; }
+        
+        /* 视频播放弹窗 */
+        .video-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 1000; justify-content: center; align-items: center; }
+        .video-modal-content { width: 90%; max-width: 960px; position: relative; }
+        .video-modal-content video { width: 100%; max-height: 80vh; border-radius: 12px; background: #000; }
+        .video-modal-close { position: absolute; top: -40px; right: 0; color: white; font-size: 32px; cursor: pointer; }
+        .video-modal-title { color: white; font-size: 14px; margin-bottom: 10px; text-align: center; }
+        
+        @media (max-width: 1000px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .two-columns { grid-template-columns: 1fr; }
+            .video-thumb { width: 70px; height: 60px; font-size: 22px; }
+        }
+        .card { padding: 0; overflow: hidden; }
+        .refresh-tip { font-size: 11px; color: #2c6e9e; margin-left: 12px; cursor: pointer; text-decoration: underline; }
+        .stat-loading { font-size: 20px; color: #aaa; }
+        
+        /* 成绩来源标签 */
+        .source-tag {
+            display: inline-block;
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            margin-left: 6px;
+            font-weight: 500;
+            vertical-align: middle;
+        }
+        .source-tag.realtime { background: #d4edda; color: #155724; }
+        .source-tag.cached { background: #e2e3e5; color: #383d41; }
+
+        /* ========== 图表样式 ========== */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        .chart-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1e3c72;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .chart-canvas {
+            width: 100%;
+            height: 220px;
+        }
+        .chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+        .trend-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+        }
+        .trend-canvas { width: 100%; height: 200px; }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .dashboard-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e3c72;
+        }
+        .dashboard-subtitle {
+            font-size: 13px;
+            color: #8c9ab0;
+            margin-top: 4px;
+        }
+        .report-date {
+            font-size: 13px;
+            color: #8c9ab0;
+            background: #f0f4f8;
+            padding: 6px 14px;
+            border-radius: 20px;
+        }
+
+        @media (max-width: 1000px) {
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">🏃 AI体育<span>运动数据管理平台</span><span class="online-dot offline" id="onlineDot" title="点击检测训练站状态" style="cursor:pointer;"></span></div>
+        <div class="nav-links">
+            <button class="nav-btn active" onclick="location.href='index.html'">数据看板</button>
+            <button class="nav-btn" onclick="location.href='student.html'">学生管理</button>
+            <button class="nav-btn" onclick="location.href='score.html'">成绩分析</button>
+            <button class="nav-btn" onclick="location.href='video.html'">视频回放</button>
+            <button class="nav-btn" onclick="location.href='camera.html'">底库管理</button>
+        </div>
+        <div class="user-info">
+            <span class="school-name-display" id="schoolNameDisplay"></span>
+            <img class="logo-img" src="../../logo.jpg" alt="logo" onerror="this.style.display='none'">
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 看板标题 -->
+        <div class="dashboard-header">
+            <div>
+                <div class="dashboard-title">📊 智慧体育数据看板</div>
+                <div class="dashboard-subtitle">实时体测数据汇总 · 智慧运动健康监测</div>
+            </div>
+            <div class="report-date" id="reportDate">--</div>
+        </div>
+
+        <!-- 统计卡片区 - 动态数据 -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card"><div class="stat-title">📊 底库总人数</div><div class="stat-value" id="totalStudents">--</div><div class="stat-sub">✨ 已注册学生</div></div>
+            <div class="stat-card"><div class="stat-title">🏆 近30天优秀率</div><div class="stat-value" id="excellentRate">--<span class="stat-unit">%</span></div><div class="stat-sub">💪 优秀人数占比</div></div>
+            <div class="stat-card"><div class="stat-title">🎥 近30天视频</div><div class="stat-value" id="totalVideos">--<span class="stat-unit">个</span></div><div class="stat-sub">📹 已归档视频片段</div></div>
+            <div class="stat-card"><div class="stat-title">⚡ 今日活跃</div><div class="stat-value" id="todayActive">--<span class="stat-unit">人</span></div><div class="stat-sub">⏱️ 今日有成绩记录</div></div>
+        </div>
+
+        <!-- 图表区 -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-title">📊 各项目测试人次（近30天）</div>
+                <canvas id="sportBarChart" class="chart-canvas"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">🎯 成绩等级分布（近30天）</div>
+                <canvas id="levelPieChart" class="chart-canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- 趋势折线图 -->
+        <div class="trend-card">
+            <div class="chart-title">📈 近30天每日测试人次趋势</div>
+            <canvas id="trendLineChart" class="trend-canvas"></canvas>
+        </div>
+
+        <!-- 运动项目达标率（保留原进度条） -->
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><h3>📈 近10天各项目达标率 <span class="refresh-tip" id="refreshSports" title="刷新运动数据">↻</span></h3></div>
+            <div id="sportsContainer">
+                <div class="loading-skeleton" style="height: 60px;"></div>
+                <div class="loading-skeleton" style="height: 60px;"></div>
+                <div class="loading-skeleton" style="height: 60px;"></div>
+            </div>
+        </div>
+
+        <div class="two-columns">
+            <!-- 最近成绩动态卡片 -->
+            <div class="card">
+                <div class="card-header"><h3>📋 近10天最新体育成绩 <span class="refresh-tip" id="refreshScores" title="刷新成绩">↻</span></h3></div>
+                <div id="recentScoresContainer" class="recent-score-list">
+                    <div class="loading-skeleton" style="height: 50px;"></div>
+                    <div class="loading-skeleton" style="height: 50px;"></div>
+                    <div class="loading-skeleton" style="height: 50px;"></div>
+                </div>
+            </div>
+            <!-- 最新训练视频动态卡片 -->
+            <div class="card">
+                <div class="card-header"><h3>🎬 近10天最新训练视频 <span class="refresh-tip" id="refreshVideos" title="刷新视频">↻</span></h3></div>
+                <div id="videoListContainer" class="video-list">
+                    <div class="loading-skeleton" style="height: 80px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 系统日志卡片 -->
+        <div class="card" style="margin-top:20px;">
+            <div class="card-header"><h3>📜 系统日志 <span class="refresh-tip" id="refreshLogs" title="刷新日志">↻</span></h3></div>
+            <div id="opsLogContainer" class="recent-score-list" style="max-height:220px;">
+                <div class="empty-state">暂无日志</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 视频播放弹窗（与 video.html 共用逻辑） -->
+    <div id="videoModal" class="video-modal" onclick="closeVideoModal()">
+        <div class="video-modal-content" onclick="event.stopPropagation()">
+            <div class="video-modal-title" id="videoModalTitle">视频播放</div>
+            <video id="modalVideo" controls playsinline></video>
+            <div class="video-modal-close" onclick="closeVideoModal()">&times;</div>
+        </div>
+    </div>
+
+    <script>
+        // ======================== 全局配置 ========================
+        const API_BASE = "http://192.168.2.240:8080";
+        const GET_TOTAL_API = API_BASE + "/api/v1/uid/known";
+        const QUERY_SCORE_API = API_BASE + "/api/v1/data/score/qytimes";
+        const QUERY_SCORE_DATE_API = API_BASE + "/api/v1/data/score/qydate";
+        const OPS_LOG_API = API_BASE + "/api/v1/ops/log";
+
+        const SPORT_NAME_MAP = {
+            'E-2-1': '50米短跑', 'E-2-2': '100米短跑', 'E-2-3': '800米长跑',
+            'E-2-4': '1000米长跑', 'E-2-5': '200米短跑', 'E-2-6': '400米短跑',
+            'E-2-7': '1500米长跑', 'E-2-8': '自由跑', 'E-2-9': '方阵跑',
+            'E-2-12': '60米短跑', 'E-2-13': '80米栏', 'E-2-14': '110米栏',
+            'E-2-15': '100米栏', 'E-2-16': '50×8折返跑',
+            'E-1-1': '仰卧起坐', 'E-1-2': '引体向上', 'E-1-3': '立定跳远',
+            'E-1-4': '单人跳绳', 'E-1-5': '坐位体前屈', 'E-1-6': '实心球',
+            'E-1-7': '立定摸高', 'E-1-9': '斜身引体', 'E-1-10': '多人跳绳',
+            'E-3-1': '足球颠球', 'E-3-2': '足球绕杆', 'E-3-5': '篮球绕杆'
+        };
+
+        let isStationOnline = false;
+        let lastApiScores = []; // 本次在线获取的成绩，用于标注来源
+
+        // ========== 训练站在线状态检测 ==========
+        async function checkStationStatus() {
+            const dot = document.getElementById('onlineDot');
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 3000);
+                const res = await fetch(GET_TOTAL_API, { signal: controller.signal });
+                clearTimeout(timeout);
+                if (res.ok) {
+                    isStationOnline = true;
+                    if (dot) { dot.className = 'online-dot online'; dot.title = '训练站在线'; }
+                } else {
+                    throw new Error('not ok');
+                }
+            } catch (e) {
+                isStationOnline = false;
+                if (dot) { dot.className = 'online-dot offline'; dot.title = '训练站离线'; }
+            }
+        }
+
+        // 评级辅助函数
+        function getLevel(sportId, legal, durationMs) {
+            if (sportId === 'E-1-10' || sportId === 'E-1-4') {
+                if (legal >= 180) return '优秀';
+                if (legal >= 140) return '良好';
+                if (legal >= 100) return '及格';
+                return '不及格';
+            }
+            if (sportId === 'E-1-1' || sportId === 'E-1-2') {
+                if (legal >= 50) return '优秀';
+                if (legal >= 40) return '良好';
+                if (legal >= 30) return '及格';
+                return '不及格';
+            }
+            if (sportId === 'E-1-3') {
+                if (legal >= 250) return '优秀';
+                if (legal >= 220) return '良好';
+                if (legal >= 190) return '及格';
+                return '不及格';
+            }
+            if (sportId === 'E-1-5') {
+                const cm = legal ? legal / 10 : 0;
+                if (cm >= 16) return '优秀';
+                if (cm >= 12) return '良好';
+                if (cm >= 8) return '及格';
+                return '不及格';
+            }
+            if (sportId && sportId.includes('E-2')) {
+                const seconds = durationMs / 1000;
+                if (seconds <= 7.5) return '优秀';
+                if (seconds <= 8.5) return '良好';
+                if (seconds <= 10.0) return '及格';
+                return '不及格';
+            }
+            return '未知';
+        }
+
+        function formatTimeFromMs(durationMs) {
+            if (!durationMs && durationMs !== 0) return '-';
+            const totalSeconds = Math.floor(durationMs / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            if (minutes === 0) return `${seconds}秒`;
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function getScoreDisplay(sportId, durationMs, legal) {
+            if (sportId === 'E-1-10' || sportId === 'E-1-4') return legal !== undefined && legal !== null ? `${legal}个` : formatTimeFromMs(durationMs);
+            if (sportId === 'E-1-1' || sportId === 'E-1-2') return legal !== undefined && legal !== null ? `${legal}个` : formatTimeFromMs(durationMs);
+            if (sportId === 'E-1-3') return legal !== undefined && legal !== null ? `${legal}cm` : '-';
+            if (sportId === 'E-1-5') return legal !== undefined && legal !== null ? `${(legal / 10).toFixed(1)}cm` : '-';
+            if (sportId === 'E-1-6') return legal !== undefined && legal !== null ? `${legal}cm` : '-';
+            if (sportId === 'E-1-7') return legal !== undefined && legal !== null ? `${legal}cm` : '-';
+            if (sportId && sportId.includes('E-2')) return formatTimeFromMs(durationMs);
+            return durationMs ? (durationMs / 1000).toFixed(2) + '秒' : '-';
+        }
+
+        function getBadgeClass(level) {
+            if (level === '优秀') return 'excellent';
+            if (level === '良好') return 'good';
+            if (level === '及格') return 'pass';
+            return 'fail';
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        // ========== 底库总数 ==========
+        async function fetchTotalStudents() {
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(GET_TOTAL_API, { signal: controller.signal });
+                clearTimeout(timeout);
+                const data = await res.json();
+                if (data.code === 0 && data.data && typeof data.data.total === 'number') {
+                    return data.data.total;
+                }
+                return 0;
+            } catch (err) {
+                return 0;
+            }
+        }
+
+        // ========== 按日期范围获取远程成绩 ==========
+        async function fetchRemoteScoresByDate(startTime, endTime, syncedUids = new Set()) {
+            let allScores = [];
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 10000);
+                const resp = await fetch(QUERY_SCORE_DATE_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal,
+                    body: JSON.stringify({ startTime, endTime })
+                });
+                clearTimeout(timeout);
+                const result = await resp.json();
+                if (result.code === 0 && result.data?.taskInfoScoreList) {
+                    const tasks = result.data.taskInfoScoreList;
+                    for (let task of tasks) {
+                        const taskInfo = task.task_info || {};
+                        const sportInfo = task.sport_info || {};
+                        const scoreInfo = task.score_info || {};
+                        const completedTime = taskInfo.task_completed_time;
+                        const sportId = sportInfo.sport_id;
+                        const scoreList = scoreInfo.score_list || [];
+                        for (let score of scoreList) {
+                            if (syncedUids.size > 0 && !syncedUids.has(score.uid)) continue;
+                            const timeStr = completedTime ? new Date(completedTime).toLocaleString() : new Date().toLocaleString();
+                            allScores.push({
+                                uid: score.uid,
+                                name: score.name || score.uid,
+                                sportId: sportId,
+                                duration: score.duration,
+                                legal: score.legal,
+                                illegal: score.illegal,
+                                time: timeStr,
+                                completedTime: completedTime || Date.now(),
+                                playbackUrls: scoreInfo.publicPlayback || scoreInfo.playback || []
+                            });
+                        }
+                    }
+                }
+            } catch(e) {
+                console.error("获取远程成绩(qydate)失败", e);
+            }
+            allScores.sort((a, b) => (b.completedTime || 0) - (a.completedTime || 0));
+            return allScores;
+        }
+
+        // ========== 获取系统日志 ==========
+        async function fetchOpsLog() {
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 5000);
+                const resp = await fetch(OPS_LOG_API, { method: 'GET', signal: controller.signal });
+                clearTimeout(timeout);
+                const result = await resp.json();
+                if (result.code === 0 && result.data) {
+                    return Array.isArray(result.data) ? result.data : (result.data.list || result.data.logs || []);
+                }
+                return [];
+            } catch(e) {
+                console.error("获取系统日志失败", e);
+                return [];
+            }
+        }
+
+        // ========== 同步新成绩到本地 SQLite（去重） ==========
+        async function syncScoresToLocal(scores) {
+            if (!window.electronAPI || !window.electronAPI.scoreSaveMultiple) return;
+            try {
+                const newScores = [];
+                for (const s of scores) {
+                    const exists = await window.electronAPI.scoreExists(s.uid, new Date(s.completedTime).toISOString());
+                    if (!exists) {
+                        newScores.push({
+                            uid: s.uid,
+                            name: s.name || s.uid,
+                            sportId: s.sportId,
+                            sportName: SPORT_NAME_MAP[s.sportId] || s.sportId,
+                            duration: s.duration || 0,
+                            legal: s.legal || 0,
+                            illegal: s.illegal || 0,
+                            className: s.className || '',
+                            scoreTime: new Date(s.completedTime).toISOString(),
+                            source: '实时'
+                        });
+                    }
+                }
+                if (newScores.length > 0) {
+                    await window.electronAPI.scoreSaveMultiple(newScores);
+                    console.log(`已同步 ${newScores.length} 条新成绩到本地`);
+                }
+            } catch (e) {
+                console.error('同步成绩到本地失败:', e);
+            }
+        }
+
+        // ========== 从本地 SQLite 读取成绩 ==========
+        async function loadLocalScores(limit = 300) {
+            if (!window.electronAPI || !window.electronAPI.scoreGetRecent) return [];
+            try {
+                const rows = await window.electronAPI.scoreGetRecent(limit);
+                return rows.map(r => ({
+                    uid: r.uid,
+                    name: r.name || r.uid,
+                    sportId: r.sport_id,
+                    duration: r.duration,
+                    legal: r.legal,
+                    illegal: r.illegal,
+                    time: r.score_time ? new Date(r.score_time).toLocaleString() : '-',
+                    completedTime: r.score_time ? new Date(r.score_time).getTime() : 0,
+                    playbackUrls: [],
+                    source: r.source || '累计',
+                    className: r.class_name || ''
+                }));
+            } catch (e) {
+                console.error('读取本地成绩失败:', e);
+                return [];
+            }
+        }
+
+        // ========== 过滤最近N天的成绩 ==========
+        function filterScoresByDays(scoresArray, days) {
+            const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+            return scoresArray.filter(s => (s.completedTime || 0) >= cutoff);
+        }
+
+        // ========== 统计计算 ==========
+        function calcExcellentRate(scoresArray) {
+            if (!scoresArray.length) return 0;
+            const studentBestMap = new Map();
+            for (let s of scoresArray) {
+                const level = getLevel(s.sportId, s.legal, s.duration);
+                if (!studentBestMap.has(s.uid)) {
+                    studentBestMap.set(s.uid, level);
+                } else {
+                    const current = studentBestMap.get(s.uid);
+                    const priority = { '优秀': 3, '良好': 2, '及格': 1, '不及格': 0 };
+                    if (priority[level] > priority[current]) studentBestMap.set(s.uid, level);
+                }
+            }
+            let excellentCount = 0;
+            for (let level of studentBestMap.values()) {
+                if (level === '优秀') excellentCount++;
+            }
+            return studentBestMap.size > 0 ? (excellentCount / studentBestMap.size) * 100 : 0;
+        }
+
+        function getTodayActiveCount(scoresArray) {
+            const todayStr = new Date().toLocaleDateString();
+            const activeUids = new Set();
+            for (let s of scoresArray) {
+                const recordDate = s.time ? s.time.split(' ')[0] : '';
+                if (recordDate === todayStr) activeUids.add(s.uid);
+            }
+            return activeUids.size;
+        }
+
+        function computeSportPassRates(scoresArray) {
+            const sportMap = new Map();
+            for (let s of scoresArray) {
+                if (!s.sportId) continue;
+                if (!sportMap.has(s.sportId)) sportMap.set(s.sportId, { total: 0, pass: 0 });
+                const stat = sportMap.get(s.sportId);
+                stat.total++;
+                const level = getLevel(s.sportId, s.legal, s.duration);
+                if (level === '优秀' || level === '良好' || level === '及格') stat.pass++;
+                sportMap.set(s.sportId, stat);
+            }
+            const results = [];
+            for (let [sportId, stat] of sportMap.entries()) {
+                const rate = stat.total > 0 ? (stat.pass / stat.total) * 100 : 0;
+                results.push({ sportId, name: SPORT_NAME_MAP[sportId] || sportId, rate });
+            }
+            results.sort((a,b) => b.rate - a.rate);
+            return results.slice(0, 5);
+        }
+
+        function extractLatestVideos(scoresArray, limit = 3) {
+            const videos = [];
+            for (let s of scoresArray) {
+                if (s.playbackUrls && s.playbackUrls.length > 0) {
+                    const videoUrl = s.playbackUrls[0];
+                    if (videoUrl && videoUrl.trim()) {
+                        videos.push({
+                            url: videoUrl,
+                            title: `${s.name || s.uid} - ${SPORT_NAME_MAP[s.sportId] || '体育项目'}训练`,
+                            time: s.time,
+                            sportId: s.sportId
+                        });
+                    }
+                }
+                if (videos.length >= limit) break;
+            }
+            return videos;
+        }
+
+        // 判断成绩是否属于本次实时获取
+        function isRealtimeScore(score) {
+            if (!isStationOnline) return false;
+            return lastApiScores.some(api => api.uid === score.uid && api.completedTime === score.completedTime);
+        }
+
+        // ========== 主渲染逻辑 ==========
+        async function refreshDashboard() {
+            // 1. 先并行获取本地学生和本地成绩（立即显示，不等待远程）
+            const studentsPromise = (async () => {
+                const map = new Map();
+                try {
+                    if (window.electronAPI && window.electronAPI.dbGetAll) {
+                        const students = await window.electronAPI.dbGetAll();
+                        for (const s of students) map.set(s.uid, s);
+                    }
+                } catch(e) {}
+                return map;
+            })();
+            const localScoresPromise = loadLocalScores(300);
+
+            let studentMap = new Map();
+            let localScores = [];
+            try { studentMap = await studentsPromise; } catch(e) {}
+            try { localScores = await localScoresPromise; } catch(e) {}
+
+            const syncedUids = new Set(studentMap.keys());
+
+            // 补充班级信息
+            localScores.forEach(s => {
+                if (!s.className) {
+                    const stu = studentMap.get(s.uid);
+                    if (stu) s.className = stu.className || '-';
+                }
+            });
+
+            // 2. 先用本地数据渲染页面（保证离线也能看到）
+            const monthScoresLocal = filterScoresByDays(localScores, 30);
+            const tenDayScoresLocal = filterScoresByDays(localScores, 10);
+            renderDashboard({
+                totalStudents: syncedUids.size,
+                monthScores: monthScoresLocal,
+                tenDayScores: tenDayScoresLocal,
+                videos: extractLatestVideos(tenDayScoresLocal, 3),
+                logs: []
+            });
+
+            // 3. 后台并行请求远程数据（一个月成绩 + 当天日志 + 底库总数）
+            const now = Date.now();
+            const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
+
+            const totalPromise = fetchTotalStudents();
+            const remoteScoresPromise = fetchRemoteScoresByDate(monthAgo, now, syncedUids);
+            const logPromise = fetchOpsLog();
+
+            let totalStudents = 0;
+            let remoteScores = [];
+            let opsLogs = [];
+            try { totalStudents = await totalPromise; } catch(e) {}
+            try { remoteScores = await remoteScoresPromise; } catch(e) {}
+            try { opsLogs = await logPromise; } catch(e) {}
+
+            // 4. 判断在线状态（仅在成功获取数据时设为在线，避免覆盖 checkStationStatus 的检测结果）
+            if (remoteScores.length > 0) isStationOnline = true;
+
+            // 同步到本地（后台，不阻塞显示）
+            if (remoteScores.length > 0) {
+                lastApiScores = remoteScores;
+                const scoresToSync = remoteScores.map(s => {
+                    const stu = studentMap.get(s.uid);
+                    return { ...s, className: stu?.className || '' };
+                });
+                syncScoresToLocal(scoresToSync).catch(() => {});
+            } else {
+                lastApiScores = [];
+            }
+
+            // 5. 合并本地和远程数据，去重
+            const allScoresMap = new Map();
+            for (const s of localScores) allScoresMap.set(s.uid + '_' + s.completedTime, s);
+            for (const s of remoteScores) allScoresMap.set(s.uid + '_' + s.completedTime, s);
+            const allScores = Array.from(allScoresMap.values());
+            allScores.sort((a, b) => (b.completedTime || 0) - (a.completedTime || 0));
+
+            // 补充班级信息
+            allScores.forEach(s => {
+                if (!s.className) {
+                    const stu = studentMap.get(s.uid);
+                    if (stu) s.className = stu.className || '-';
+                }
+            });
+
+            const monthScores = filterScoresByDays(allScores, 30);
+            const tenDayScores = filterScoresByDays(allScores, 10);
+
+            // 6. 用合并后的数据重新渲染（如果远程有数据才更新，避免闪烁）
+            renderDashboard({
+                totalStudents: totalStudents || syncedUids.size,
+                monthScores: monthScores,
+                tenDayScores: tenDayScores,
+                videos: extractLatestVideos(tenDayScores, 3),
+                logs: opsLogs
+            });
+        }
+
+
+        // ========== Canvas 图表绘制 ==========
+        function drawBarChart(canvasId, labels, values, colors) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            const w = rect.width, h = rect.height;
+            const padding = { top: 20, right: 20, bottom: 50, left: 50 };
+            const chartW = w - padding.left - padding.right;
+            const chartH = h - padding.top - padding.bottom;
+            const maxVal = Math.max(...values, 1);
+            const barCount = values.length;
+            const barGap = 12;
+            const barWidth = Math.max(20, (chartW - barGap * (barCount + 1)) / barCount);
+
+            ctx.clearRect(0, 0, w, h);
+
+            // 网格线
+            ctx.strokeStyle = '#f0f2f6';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = padding.top + chartH * (i / 4);
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(w - padding.right, y);
+                ctx.stroke();
+                // Y轴标签
+                ctx.fillStyle = '#8c9ab0';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(Math.round(maxVal * (1 - i / 4)), padding.left - 8, y + 4);
+            }
+
+            // 柱状图
+            labels.forEach((label, i) => {
+                const x = padding.left + barGap + i * (barWidth + barGap);
+                const barH = (values[i] / maxVal) * chartH;
+                const y = padding.top + chartH - barH;
+                const color = colors[i] || '#2c6e9e';
+
+                // 柱子
+                const grad = ctx.createLinearGradient(0, y, 0, y + barH);
+                grad.addColorStop(0, color);
+                grad.addColorStop(1, color + '88');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.roundRect(x, y, barWidth, barH, 4);
+                ctx.fill();
+
+                // 数值
+                ctx.fillStyle = '#1e3c72';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(values[i], x + barWidth / 2, y - 6);
+
+                // X轴标签
+                ctx.fillStyle = '#5a6e85';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center';
+                const shortLabel = label.length > 4 ? label.slice(0, 4) + '..' : label;
+                ctx.fillText(shortLabel, x + barWidth / 2, h - padding.bottom + 18);
+            });
+        }
+
+        function drawPieChart(canvasId, labels, values, colors) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            const w = rect.width, h = rect.height;
+            const total = values.reduce((a, b) => a + b, 0);
+            if (total === 0) {
+                ctx.fillStyle = '#8c9ab0';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('暂无数据', w / 2, h / 2);
+                return;
+            }
+            const cx = w / 2 - 60, cy = h / 2, r = Math.min(cx, cy) - 10;
+            let startAngle = -Math.PI / 2;
+
+            ctx.clearRect(0, 0, w, h);
+
+            values.forEach((val, i) => {
+                const angle = (val / total) * Math.PI * 2;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, r, startAngle, startAngle + angle);
+                ctx.closePath();
+                ctx.fillStyle = colors[i];
+                ctx.fill();
+                // 白边
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                startAngle += angle;
+            });
+
+            // 中心白色圆（甜甜圈效果）
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            // 中心文字
+            ctx.fillStyle = '#1e3c72';
+            ctx.font = 'bold 18px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(total, cx, cy + 2);
+            ctx.font = '12px sans-serif';
+            ctx.fillStyle = '#8c9ab0';
+            ctx.fillText('总人次', cx, cy + 18);
+
+            // 右侧图例
+            let legendY = 30;
+            labels.forEach((label, i) => {
+                const pct = ((values[i] / total) * 100).toFixed(1);
+                const lx = cx + r + 30;
+                ctx.fillStyle = colors[i];
+                ctx.fillRect(lx, legendY, 12, 12);
+                ctx.fillStyle = '#1e2a3e';
+                ctx.font = '13px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(label, lx + 18, legendY + 10);
+                ctx.fillStyle = '#8c9ab0';
+                ctx.font = '11px sans-serif';
+                ctx.fillText(`${values[i]}人 (${pct}%)`, lx + 18, legendY + 24);
+                legendY += 40;
+            });
+        }
+
+        function drawLineChart(canvasId, labels, values) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            const w = rect.width, h = rect.height;
+            const padding = { top: 20, right: 20, bottom: 40, left: 40 };
+            const chartW = w - padding.left - padding.right;
+            const chartH = h - padding.top - padding.bottom;
+            const maxVal = Math.max(...values, 1);
+
+            ctx.clearRect(0, 0, w, h);
+
+            // 网格线
+            ctx.strokeStyle = '#f0f2f6';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = padding.top + chartH * (i / 4);
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(w - padding.right, y);
+                ctx.stroke();
+                ctx.fillStyle = '#8c9ab0';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(Math.round(maxVal * (1 - i / 4)), padding.left - 8, y + 4);
+            }
+
+            // 数据点
+            const points = values.map((v, i) => ({
+                x: padding.left + (chartW / (values.length - 1 || 1)) * i,
+                y: padding.top + chartH - (v / maxVal) * chartH
+            }));
+
+            // 填充区域
+            if (points.length > 0) {
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, padding.top + chartH);
+                points.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.lineTo(points[points.length - 1].x, padding.top + chartH);
+                ctx.closePath();
+                const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + chartH);
+                grad.addColorStop(0, 'rgba(44,110,158,0.2)');
+                grad.addColorStop(1, 'rgba(44,110,158,0.02)');
+                ctx.fillStyle = grad;
+                ctx.fill();
+            }
+
+            // 折线
+            if (points.length > 0) {
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                points.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.strokeStyle = '#2c6e9e';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+            }
+
+            // 数据点
+            points.forEach((p, i) => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.strokeStyle = '#2c6e9e';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            // X轴标签（每5天显示一个）
+            labels.forEach((label, i) => {
+                if (i % 5 !== 0 && i !== labels.length - 1) return;
+                const x = padding.left + (chartW / (values.length - 1 || 1)) * i;
+                ctx.fillStyle = '#5a6e85';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(label, x, h - padding.bottom + 18);
+            });
+        }
+
+        // 准备图表数据
+        function prepareChartData(scores) {
+            // 1. 各项目测试人次
+            const sportCount = {};
+            scores.forEach(s => {
+                if (!s.sportId) return;
+                const name = SPORT_NAME_MAP[s.sportId] || s.sportId;
+                sportCount[name] = (sportCount[name] || 0) + 1;
+            });
+            const sportEntries = Object.entries(sportCount).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+            // 2. 成绩等级分布
+            const levelCount = { '优秀': 0, '良好': 0, '及格': 0, '不及格': 0 };
+            scores.forEach(s => {
+                const level = getLevel(s.sportId, s.legal, s.duration);
+                if (levelCount[level] !== undefined) levelCount[level]++;
+            });
+
+            // 3. 每日测试人次（近30天）
+            const dayCount = {};
+            const now = Date.now();
+            for (let i = 29; i >= 0; i--) {
+                const d = new Date(now - i * 86400000);
+                const key = `${d.getMonth() + 1}/${d.getDate()}`;
+                dayCount[key] = 0;
+            }
+            scores.forEach(s => {
+                const d = new Date(s.completedTime || Date.now());
+                const key = `${d.getMonth() + 1}/${d.getDate()}`;
+                if (dayCount[key] !== undefined) dayCount[key]++;
+            });
+
+            return {
+                sportLabels: sportEntries.map(e => e[0]),
+                sportValues: sportEntries.map(e => e[1]),
+                levelLabels: Object.keys(levelCount),
+                levelValues: Object.values(levelCount),
+                dayLabels: Object.keys(dayCount),
+                dayValues: Object.values(dayCount)
+            };
+        }
+
+        // ========== 渲染函数（与数据分离，保证不卡） ==========
+        function renderDashboard({ totalStudents, monthScores, tenDayScores, videos, logs }) {
+            // 更新报告日期
+            const dateEl = document.getElementById('reportDate');
+            if (dateEl) {
+                const now = new Date();
+                dateEl.textContent = `报告日期：${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+            }
+
+            // 更新在线状态小圆点
+            const dot = document.getElementById('onlineDot');
+            if (dot) {
+                dot.className = isStationOnline ? 'online-dot online' : 'online-dot offline';
+                dot.title = isStationOnline ? '训练站在线' : '训练站离线';
+            }
+
+            // 统计卡片（基于近30天）
+            const excellentRate = monthScores.length ? calcExcellentRate(monthScores) : 0;
+            const monthVideoCount = extractLatestVideos(monthScores, 999).length;
+            const todayActive = getTodayActiveCount(monthScores);
+
+            document.getElementById('totalStudents').innerHTML = totalStudents.toLocaleString();
+            document.getElementById('excellentRate').innerHTML = excellentRate.toFixed(1) + '<span class="stat-unit">%</span>';
+            document.getElementById('totalVideos').innerHTML = monthVideoCount + '<span class="stat-unit">个</span>';
+            document.getElementById('todayActive').innerHTML = todayActive + '<span class="stat-unit">人</span>';
+
+            // 渲染图表
+            const chartData = prepareChartData(monthScores);
+            const barColors = ['#2c6e9e', '#4caf50', '#ff9800', '#e91e63', '#9c27b0', '#00bcd4', '#f44336', '#795548'];
+            const pieColors = ['#4caf50', '#2196f3', '#ff9800', '#f44336'];
+            requestAnimationFrame(() => {
+                drawBarChart('sportBarChart', chartData.sportLabels, chartData.sportValues, barColors);
+                drawPieChart('levelPieChart', chartData.levelLabels, chartData.levelValues, pieColors);
+                drawLineChart('trendLineChart', chartData.dayLabels, chartData.dayValues);
+            });
+
+            // 运动项目达标率（基于近10天）
+            const sportPassRates = computeSportPassRates(tenDayScores);
+            const sportsContainer = document.getElementById('sportsContainer');
+            if (sportPassRates.length === 0) {
+                sportsContainer.innerHTML = '<div class="empty-state">暂无运动成绩数据，请先进行测试</div>';
+            } else {
+                let html = '';
+                for (let sp of sportPassRates) {
+                    html += `
+                        <div class="sport-item">
+                            <div class="sport-info"><span>🏅 ${sp.name}</span><span>${sp.rate.toFixed(1)}%</span></div>
+                            <div class="progress-bar"><div class="progress-fill" style="width:${sp.rate}%"></div></div>
+                        </div>
+                    `;
+                }
+                sportsContainer.innerHTML = html;
+            }
+
+            // 最近成绩表格（基于近10天，显示10条）
+            const recentContainer = document.getElementById('recentScoresContainer');
+            const recentRows = tenDayScores.slice(0, 10);
+            if (recentRows.length === 0) {
+                recentContainer.innerHTML = '<div class="empty-state">暂无成绩记录，请等待学生上传数据</div>';
+            } else {
+                let rowsHtml = '';
+                for (let s of recentRows) {
+                    const badgeClass = getBadgeClass(getLevel(s.sportId, s.legal, s.duration));
+                    const scoreText = getScoreDisplay(s.sportId, s.duration, s.legal);
+                    const level = getLevel(s.sportId, s.legal, s.duration);
+                    const isRealtime = isRealtimeScore(s);
+                    const sourceTag = `<span class="source-tag ${isRealtime ? 'realtime' : 'cached'}">${isRealtime ? '实时' : '累计'}</span>`;
+
+                    rowsHtml += `
+                        <div class="score-row">
+                            <span class="score-uid">${escapeHtml(s.uid)}</span>
+                            <span class="score-name">${escapeHtml(s.name)}</span>
+                            <span class="score-class">${escapeHtml(s.className || '-')}</span>
+                            <span class="score-project">${escapeHtml(SPORT_NAME_MAP[s.sportId] || '未知项目')}</span>
+                            <span class="score-value"><span class="score-badge ${badgeClass}">${escapeHtml(scoreText)} · ${level}</span>${sourceTag}</span>
+                            <span class="score-time">${escapeHtml(s.time)}</span>
+                        </div>
+                    `;
+                }
+                recentContainer.innerHTML = rowsHtml;
+            }
+
+            // 视频列表（基于近10天，显示3条）
+            const videoContainer = document.getElementById('videoListContainer');
+            if (videos.length === 0) {
+                videoContainer.innerHTML = '<div class="empty-state">暂无训练视频，请检查成绩录制</div>';
+            } else {
+                let vidHtml = '';
+                for (let v of videos) {
+                    let fixedUrl = v.url.replace(/192\.168\.0\.159/g, '192.168.2.240')
+                                        .replace(/192\.168\.10\.80/g, '192.168.2.240');
+                    vidHtml += `
+                        <div class="video-item" onclick="playVideoDirect('${escapeHtml(fixedUrl)}', '${escapeHtml(v.title)}')">
+                            <div class="video-thumb">🎬</div>
+                            <div class="video-info">
+                                <h4>${escapeHtml(v.title)}</h4>
+                                <p>${escapeHtml(v.time) || '近期录制'}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                videoContainer.innerHTML = vidHtml;
+            }
+
+            // 系统日志
+            const logContainer = document.getElementById('opsLogContainer');
+            if (!logs || logs.length === 0) {
+                logContainer.innerHTML = '<div class="empty-state">暂无系统日志</div>';
+            } else {
+                let logHtml = '';
+                for (const log of logs.slice(0, 20)) {
+                    const time = log.time || log.timestamp || log.createTime || '-';
+                    const content = log.content || log.msg || log.message || log.desc || log.info || JSON.stringify(log);
+                    logHtml += `
+                        <div class="score-row" style="font-size:11px;">
+                            <span style="color:#8c9ab0;white-space:nowrap;min-width:140px;">${escapeHtml(String(time))}</span>
+                            <span style="margin-left:auto;color:#1e2a3e;word-break:break-all;">${escapeHtml(String(content))}</span>
+                        </div>
+                    `;
+                }
+                logContainer.innerHTML = logHtml;
+            }
+        }
+
+        // 视频播放弹窗
+        const modalVideo = document.getElementById('modalVideo');
+        const videoModal = document.getElementById('videoModal');
+        const videoModalTitle = document.getElementById('videoModalTitle');
+
+        window.playVideoDirect = function(url, title) {
+            if (!url) { alert('该成绩暂无视频'); return; }
+            let fixedUrl = url.replace(/192\.168\.0\.159/g, '192.168.2.240')
+                              .replace(/192\.168\.10\.80/g, '192.168.2.240')
+                              .replace(/192\.168\.10\.20/g, '192.168.2.240');
+            videoModalTitle.innerText = title || '视频播放';
+            modalVideo.src = fixedUrl;
+            videoModal.style.display = 'flex';
+            modalVideo.load();
+            modalVideo.play().catch(e => console.log('自动播放被阻止'));
+        };
+
+        window.closeVideoModal = function() {
+            videoModal.style.display = 'none';
+            modalVideo.pause();
+            modalVideo.src = '';
+        };
+
+        // 绑定刷新事件
+        document.getElementById('refreshSports')?.addEventListener('click', () => refreshDashboard());
+        document.getElementById('refreshScores')?.addEventListener('click', () => refreshDashboard());
+        document.getElementById('refreshVideos')?.addEventListener('click', () => refreshDashboard());
+        document.getElementById('refreshLogs')?.addEventListener('click', () => refreshDashboard());
+
+        // 启动加载：打开页面时刷新一次，之后手动刷新
+        window.addEventListener('load', () => {
+            const schoolEl = document.getElementById('schoolNameDisplay');
+            if(schoolEl){
+                fetch('../../config.json')
+                    .then(r => r.json())
+                    .then(c => { schoolEl.textContent = c.schoolName || ''; })
+                    .catch(() => {});
+            }
+            refreshDashboard();
+            checkStationStatus(); // 页面打开时检测一次在线状态
+            document.getElementById('onlineDot')?.addEventListener('click', () => {
+                checkStationStatus();
+            });
+        });
+    </script>
+</body>
+</html>

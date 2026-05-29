@@ -1,0 +1,26 @@
+appId: com.aisports.manager
+productName: AI体育管理系统
+directories:
+  output: dist
+files:
+  - main.js
+  - preload.js
+  - sqlite-db.js
+  - photo.js
+  - db.js
+  - www/**
+  - node_modules/sqlite3/**
+  - package.json
+extraResources:
+  - from: logo.jpg
+    to: .
+  - from: config.json
+    to: .
+asar: true
+asarUnpack:
+  - node_modules/sqlite3/**
+mac:
+  category: public.app-category.education
+  target:
+    - target: dmg
+      arch: x64

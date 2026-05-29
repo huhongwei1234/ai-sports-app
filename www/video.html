@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>成绩查询与视频回放 | AI体育平台</title>
+    <link rel="stylesheet" href="common.css">
+    <style>
+        .card-header {
+            padding: 14px 18px;
+            border-bottom: 1px solid #edf2f7;
+            background: #f8fafc;
+        }
+        .card-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e3c72;
+        }
+        .video-player {
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            margin: 16px;
+        }
+        video {
+            width: 100%;
+            max-height: 320px;
+            object-fit: contain;
+            background: #000;
+            display: block;
+        }
+        .video-info-bar {
+            padding: 10px 16px 14px 16px;
+            background: #ffffff;
+            border-top: 1px solid #eff3f8;
+        }
+        .current-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #1e3c72;
+        }
+        .current-meta {
+            font-size: 0.7rem;
+            color: #5a687c;
+            margin-top: 4px;
+        }
+        .search-box {
+            padding: 16px;
+            background: #f9fbfe;
+        }
+        .search-input-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .search-input-group input, .search-input-group select {
+            flex: 1;
+            padding: 10px 16px;
+            border: 1px solid #cfdfed;
+            border-radius: 28px;
+            font-size: 0.85rem;
+            background: white;
+            min-width: 150px;
+        }
+        .search-input-group button {
+            background: #2c6e9e;
+            border: none;
+            padding: 0 24px;
+            border-radius: 32px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .search-input-group button:hover {
+            background: #1f557c;
+        }
+        .score-table-container {
+            overflow-x: auto;
+            padding: 0 16px 16px 16px;
+        }
+        .score-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .score-table th, .score-table td {
+            padding: 12px 10px;
+            text-align: left;
+            border-bottom: 1px solid #edf2f7;
+            font-size: 13px;
+        }
+        .score-table th {
+            background: #f8f9fa;
+            color: #666;
+            font-weight: 600;
+        }
+        .score-table tr:hover {
+            background: #f8f9ff;
+            cursor: pointer;
+        }
+        .score-table tr.selected {
+            background: #e3f2fd;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .badge-excellent { background: #d4edda; color: #2e7d32; }
+        .badge-good { background: #d1ecf1; color: #0c5460; }
+        .badge-pass { background: #fff3cd; color: #856404; }
+        .badge-fail { background: #f8d7da; color: #721c24; }
+        .btn-video {
+            background: #2c6e9e;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        .btn-video:hover {
+            background: #1f557c;
+        }
+        .image-gallery-compact {
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 10px 12px;
+        }
+        .image-item {
+            background: #fafcff;
+            border-radius: 16px;
+            border: 1px solid #eef2fa;
+            padding: 10px;
+            margin-bottom: 12px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .image-item:hover {
+            background: #f0f4fa;
+        }
+        .image-thumb {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #1e6f5c, #289672);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            overflow: hidden;
+        }
+        .image-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .image-info {
+            flex: 1;
+        }
+        .image-info .image-title {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #1e2a3e;
+        }
+        .image-info .image-time {
+            font-size: 0.7rem;
+            color: #6c7e9e;
+            margin-top: 4px;
+        }
+        .analysis-container {
+            padding: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .analysis-section {
+            margin-bottom: 16px;
+            border-bottom: 1px solid #edf2f7;
+            padding-bottom: 12px;
+        }
+        .analysis-section:last-child {
+            border-bottom: none;
+        }
+        .analysis-title {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #1e3c72;
+            margin-bottom: 8px;
+        }
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        .analysis-item {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 8px;
+        }
+        .analysis-item .item-name {
+            font-size: 0.7rem;
+            color: #6c7e9e;
+            margin-bottom: 4px;
+        }
+        .analysis-item .item-value {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #1e2a3e;
+        }
+        .violation-item {
+            background: #fff3e0;
+            border-radius: 12px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .violation-name {
+            font-size: 0.75rem;
+            color: #e65100;
+        }
+        .violation-times {
+            font-size: 0.7rem;
+            color: #e65100;
+            background: #ffe0b2;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #8c9ab0;
+            font-size: 0.8rem;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #2c6e9e;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 15px;
+            border-top: 1px solid #edf2f7;
+        }
+        .page-btn {
+            padding: 5px 12px;
+            border: 1px solid #cfdfed;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .page-btn.active {
+            background: #2c6e9e;
+            color: white;
+            border-color: #2c6e9e;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+        .modal-content {
+            max-width: 90%;
+            max-height: 90%;
+        }
+        .modal-content img {
+            max-width: 100%;
+            max-height: 85vh;
+            border-radius: 12px;
+        }
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 40px;
+            color: white;
+            font-size: 40px;
+            cursor: pointer;
+        }
+        .video-analysis-layout {
+            display: flex;
+            gap: 0;
+            padding: 16px;
+        }
+        .video-left {
+            flex: 1;
+            min-width: 0;
+            padding-right: 16px;
+            border-right: 1px solid #edf2f7;
+        }
+        .analysis-right {
+            flex: 1;
+            min-width: 0;
+            padding-left: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+        .collapsible-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        .collapsible-icon {
+            font-size: 14px;
+            transition: transform 0.3s;
+            color: #666;
+        }
+        .collapsible-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+        .analysis-collapsible {
+            max-height: 600px;
+            overflow-y: auto;
+            transition: max-height 0.35s ease;
+        }
+        .analysis-collapsible.collapsed {
+            max-height: 0;
+            overflow: hidden;
+        }
+        @media (max-width: 900px) {
+            .video-analysis-layout { flex-direction: column; }
+            .video-left { border-right: none; padding-right: 0; border-bottom: 1px solid #edf2f7; padding-bottom: 16px; }
+            .analysis-right { padding-left: 0; padding-top: 16px; }
+            .analysis-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 780px) {
+            .search-input-group { flex-direction: column; }
+            .search-input-group button { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">🏃 AI体育<span>成绩查询与视频回放</span></div>
+        <div class="nav-links">
+            <button class="nav-btn" onclick="location.href='index.html'">数据看板</button>
+            <button class="nav-btn" onclick="location.href='student.html'">学生管理</button>
+            <button class="nav-btn" onclick="location.href='score.html'">成绩分析</button>
+            <button class="nav-btn active" onclick="location.href='video.html'">视频回放</button>
+            <button class="nav-btn" onclick="location.href='camera.html'">底库管理</button>
+        </div>
+        <div class="user-info">
+            <span class="school-name-display" id="schoolNameDisplay"></span>
+            <img class="logo-img" src="../../logo.jpg" alt="logo" onerror="this.style.display='none'">
+        </div>
+    </div>
+
+    <div class="back-home">
+        <a href="index.html" class="back-home-btn">🏠 返回首页</a>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header"><h3>🔍 成绩查询</h3></div>
+            <div class="search-box">
+                <div class="search-input-group">
+                    <input type="text" id="searchUid" placeholder="学号/UID" value="">
+                    <input type="text" id="searchName" placeholder="姓名" value="">
+                    <select id="searchSport">
+                        <option value="" selected>全部项目</option>
+                        <optgroup label="🏃 跑步类">
+                            <option value="E-2-1">50米短跑</option>
+                            <option value="E-2-2">100米短跑</option>
+                            <option value="E-2-3">800米长跑</option>
+                            <option value="E-2-4">1000米长跑</option>
+                            <option value="E-2-8">自由跑</option>
+                            <option value="E-2-9">方阵跑</option>
+                            <option value="E-2-16">50×8折返跑</option>
+                        </optgroup>
+                        <optgroup label="💪 素质类">
+                            <option value="E-1-1">仰卧起坐</option>
+                            <option value="E-1-2">引体向上</option>
+                            <option value="E-1-3">立定跳远</option>
+                            <option value="E-1-4">单人跳绳</option>
+                            <option value="E-1-5">坐位体前屈</option>
+                            <option value="E-1-6">实心球</option>
+                            <option value="E-1-7">立定摸高</option>
+                            <option value="E-1-9">斜身引体</option>
+                            <option value="E-1-10">多人跳绳</option>
+                        </optgroup>
+                        <optgroup label="⚽ 球类">
+                            <option value="E-3-1">足球颠球</option>
+                            <option value="E-3-2">足球绕杆</option>
+                            <option value="E-3-5">篮球绕杆</option>
+                        </optgroup>
+                    </select>
+                    <button id="searchBtn">🔍 查询</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="video-analysis-layout">
+                <div class="video-left">
+                    <div class="card-header" style="padding-left:0; padding-top:0;"><h3>🎬 视频播放器</h3></div>
+                    <div class="video-player" style="margin:0;">
+                        <video id="mainVideo" controls playsinline style="width:100%; max-height:260px;">
+                            <source src="" type="video/mp4">
+                        </video>
+                    </div>
+                    <div class="video-info-bar">
+                        <div class="current-title" id="currentVideoTitle">🎬 未选择视频</div>
+                        <div class="current-meta" id="currentVideoMeta">点击成绩记录中的「播放视频」按钮</div>
+                    </div>
+                    <div class="card-header" style="margin-top:12px; border-top:1px solid #edf2f7; padding-top:12px; padding-left:0;">
+                        <h3>📸 过线抓拍</h3>
+                        <span id="imageCount">0张</span>
+                    </div>
+                    <div id="imageGallery" class="image-gallery-compact" style="padding-left:0; padding-right:0;">
+                        <div class="empty-state">点击成绩记录查看抓拍图片</div>
+                    </div>
+                </div>
+                <div class="analysis-right">
+                    <div class="card-header collapsible-header" onclick="toggleAnalysis()">
+                        <h3>📊 规则分析</h3>
+                        <span id="analysisToggleIcon" class="collapsible-icon">▼</span>
+                    </div>
+                    <div id="analysisContainer" class="analysis-container analysis-collapsible">
+                        <div class="empty-state">点击成绩记录查看规则分析</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h3>📋 成绩记录</h3><span id="resultCount">0条</span></div>
+            <div class="score-table-container">
+                <table class="score-table" id="scoreTable">
+                    <thead><tr><th>时间</th><th>学号</th><th>姓名</th><th>班级</th><th>运动项目</th><th>成绩</th><th>评级</th><th>视频</th></tr></thead>
+                    <tbody id="scoreTableBody"><tr><td colspan="8" style="text-align:center;">请输入学号后点击查询</td></tr></tbody>
+                </table>
+            </div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <div id="modal" class="modal" onclick="closeModal()">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <img id="modalImage" style="max-width:100%; max-height:85vh; border-radius:12px;">
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "http://192.168.2.240:8080";
+        const QUERY_BY_UID_API = API_BASE + "/api/v1/data/score/qybyuid";
+        const QUERY_SCORE_DATE_API = API_BASE + "/api/v1/data/score/qydate";
+
+        function fixUrl(url) {
+            if (!url) return url;
+            return url.replace(/192\.168\.0\.159/g, '192.168.2.240')
+                      .replace(/192\.168\.10\.80/g, '192.168.2.240')
+                      .replace(/192\.168\.10\.20/g, '192.168.2.240');
+        }
+
+        const SPORT_NAME_MAP = {
+            // 计时跑
+            'E-2-1': '50米短跑', 'E-2-2': '100米短跑', 'E-2-3': '800米长跑',
+            'E-2-4': '1000米长跑', 'E-2-5': '200米短跑', 'E-2-6': '400米短跑',
+            'E-2-7': '1500米长跑', 'E-2-8': '自由跑', 'E-2-9': '方阵跑',
+            'E-2-11': '自由跑+方阵跑', 'E-2-12': '60米短跑', 'E-2-13': '80米栏',
+            'E-2-14': '110米栏', 'E-2-15': '100米栏', 'E-2-16': '50×8折返跑',
+            // 素质
+            'E-1-1': '仰卧起坐', 'E-1-2': '引体向上', 'E-1-3': '立定跳远',
+            'E-1-4': '单人跳绳', 'E-1-5': '坐位体前屈', 'E-1-6': '实心球',
+            'E-1-7': '立定摸高', 'E-1-9': '斜身引体', 'E-1-10': '多人跳绳',
+            // 球类
+            'E-3-1': '足球颠球', 'E-3-2': '足球绕杆', 'E-3-5': '篮球绕杆',
+            'E-3-6': '篮球投篮', 'E-3-7': '篮球运投', 'E-1-6-1': '实心球(球类)',
+            'E-3-9': '排球垫球(对墙)', 'E-3-10': '排球垫球(对空)',
+            // 测量类
+            'E-5-1': '身高体重BMI', 'E-5-2': '肺活量',
+            // 特训版
+            'S-1-11': '仰卧起坐/俯卧撑', 'S-1-2': '引体向上/单杠卷身上',
+            'S-1-4': '双杠臂屈伸', 'S-1-5': '双杠支撑移动', 'S-1-6': '俯卧撑',
+            'S-2-7': '5x10折返跑', 'S-1-10': '单人跳绳/深蹲',
+            'S-2-2': '3000米长跑', 'S-2-5': '5000米长跑',
+            // 综合版 / 飞扬体育
+            'C-3-1': '羽毛球鹰眼', 'C-3-2': '篮球运投',
+            'E-1-10-15': '三合一多人跳绳', 'E-1-1-15': '三合一仰卧起坐',
+            'E-1-3-17': '三合一立定跳远'
+        };
+
+        const VIOLATION_NAME_MAP = {
+            'E-1-10-1-1': '单脚跳绳', 'E-1-10-1-2': '离开运动区',
+            'E-1-1-1-1': '双手未抱头', 'E-1-1-1-2': '双肘未触膝',
+            'down_knee': '屈膝角度异常', 'down_hip': '屈髋角度异常', 'up_shoulder': '颈部前伸',
+            'knee_left': '左下肢力线', 'knee_right': '右下肢力线',
+            'shoulder_left': '左肩臂夹角', 'shoulder_right': '右肩臂夹角',
+            'E-2-1-1-1': '抢跑', 'E-2-2-1-1': '抢跑'
+        };
+
+        function getSportName(id) { return SPORT_NAME_MAP[id] || id || '未知项目'; }
+        function getViolationName(code) { return VIOLATION_NAME_MAP[code] || code || '未知违规'; }
+
+        function formatTimeFromMs(ms) {
+            if (!ms && ms !== 0) return '-';
+            const sec = Math.floor(ms / 1000);
+            const min = Math.floor(sec / 60);
+            const s = sec % 60;
+            return min > 0 ? `${min}:${s.toString().padStart(2,'0')}` : `${s}秒`;
+        }
+
+        function getScoreDisplay(sportId, durationMs, legal) {
+            if (sportId === 'E-1-4' || sportId === 'E-1-10') return legal ? `${legal}个` : formatTimeFromMs(durationMs);
+            if (sportId === 'E-1-1' || sportId === 'E-1-2') return legal ? `${legal}个` : formatTimeFromMs(durationMs);
+            if (sportId === 'E-1-3') return legal ? `${legal}cm` : '-';
+            if (sportId === 'E-1-5') return legal ? `${(legal/10).toFixed(1)}cm` : '-';
+            if (sportId === 'E-1-6') return legal ? `${legal}cm` : '-';
+            if (sportId === 'E-1-7') return legal ? `${legal}cm` : '-';
+            if (sportId?.includes('E-2')) return formatTimeFromMs(durationMs);
+            return durationMs ? (durationMs/1000).toFixed(2)+'秒' : '-';
+        }
+
+        function getLevel(sportId, legal, durationMs) {
+            if (sportId === 'E-1-4' || sportId === 'E-1-10') {
+                if (legal >= 180) return '优秀';
+                if (legal >= 140) return '良好';
+                if (legal >= 100) return '及格';
+                return '不及格';
+            }
+            if (sportId === 'E-1-1' || sportId === 'E-1-2') {
+                if (legal >= 50) return '优秀';
+                if (legal >= 40) return '良好';
+                if (legal >= 30) return '及格';
+                return '不及格';
+            }
+            if (sportId === 'E-1-3') {
+                if (legal >= 250) return '优秀';
+                if (legal >= 220) return '良好';
+                if (legal >= 190) return '及格';
+                return '不及格';
+            }
+            if (sportId?.includes('E-2')) {
+                const sec = durationMs / 1000;
+                if (sec <= 7.5) return '优秀';
+                if (sec <= 8.5) return '良好';
+                if (sec <= 10.0) return '及格';
+                return '不及格';
+            }
+            return '未知';
+        }
+
+        function getBadgeClass(level) {
+            if (level === '优秀') return 'badge-excellent';
+            if (level === '良好') return 'badge-good';
+            if (level === '及格') return 'badge-pass';
+            return 'badge-fail';
+        }
+
+        // 解析API返回数据，提取指定UID的成绩
+        function parseScoreResponse(data, targetUid) {
+            console.log('[video] 开始解析成绩数据, 目标UID:', targetUid);
+            
+            let taskList = [];
+            if (data.data && data.data.taskInfoScoreList) {
+                taskList = data.data.taskInfoScoreList;
+            } else if (data.taskInfoScoreList) {
+                taskList = data.taskInfoScoreList;
+            }
+            
+            if (!taskList || taskList.length === 0) {
+                console.log('[video] 没有找到 taskInfoScoreList');
+                return [];
+            }
+            
+            const scores = [];
+            for (const task of taskList) {
+                const taskInfo = task.task_info || {};
+                const sportInfo = task.sport_info || {};
+                const scoreInfo = task.score_info || {};
+                
+                const taskId = taskInfo.task_id;
+                const sportId = sportInfo.sport_id;
+                const sportName = sportInfo.sport_name;
+                const completedTime = taskInfo.task_completed_time;
+                
+                // 获取视频地址
+                const playbackUrls = scoreInfo.playback || [];
+                const publicPlaybackUrls = scoreInfo.publicPlayback || [];
+                const allPlaybackUrls = [...playbackUrls, ...publicPlaybackUrls];
+                
+                const scoreList = scoreInfo.score_list || [];
+                
+                // 遍历score_list，只提取目标UID的成绩
+                for (const score of scoreList) {
+                    if (score.uid !== targetUid) continue; // 只处理目标UID
+                    
+                    const illegalDetail = score.illega_detail || [];
+                    
+                    // 从 evaluation_report 中获取该UID的动作分析
+                    const evaluationReport = scoreInfo.evaluation_report;
+                    if (evaluationReport && evaluationReport.evaluation_list) {
+                        for (const evalItem of evaluationReport.evaluation_list) {
+                            if (evalItem.uid === targetUid && evalItem.action_stage) {
+                                for (const stage of evalItem.action_stage) {
+                                    if (stage.evaluations) {
+                                        for (const ev of stage.evaluations) {
+                                            if (ev.name) {
+                                                illegalDetail.push({
+                                                    code: ev.code,
+                                                    name: ev.name,
+                                                    times: 1,
+                                                    value: ev.result,
+                                                    unit: ev.unit,
+                                                    standard: ev.infer_min !== null && ev.infer_max !== null ? `${ev.infer_min}~${ev.infer_max}${ev.unit || ''}` : ''
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    scores.push({
+                        taskId: taskId,
+                        sportId: sportId,
+                        sportName: sportName,
+                        uid: score.uid,
+                        name: score.name || score.uid,
+                        duration: score.duration || 0,
+                        legal: score.legal || 0,
+                        illegal: score.illegal || 0,
+                        illegalDetail: illegalDetail,
+                        scoreRecords: score.score_records || score.score_public_records || [],
+                        playbackUrls: allPlaybackUrls,
+                        evaluationReport: evaluationReport,
+                        time: completedTime ? new Date(completedTime).toLocaleString() : '-',
+                        completedTime: completedTime || 0
+                    });
+                }
+            }
+            
+            console.log('[video] 解析完成，共', scores.length, '条成绩');
+            return scores;
+        }
+
+        // 查询所有项目（全部项目时遍历所有运动类型）
+        async function queryAllSports(uid) {
+            if (!uid) return [];
+            
+            const allSportIds = Object.keys(SPORT_NAME_MAP);
+            console.log('[video] 查询全部项目，共', allSportIds.length, '个项目');
+            
+            const allScores = [];
+            
+            for (const sportId of allSportIds) {
+                try {
+                    const body = { uid: uid, offset: 1, pageSize: 100, order: "date", sportId: sportId };
+                    const response = await fetch(QUERY_BY_UID_API, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    const result = await response.json();
+                    if (result.code === 0) {
+                        const scores = parseScoreResponse(result, uid);
+                        allScores.push(...scores);
+                    }
+                } catch (err) {
+                    console.error('[video] 查询项目', sportId, '失败:', err);
+                }
+            }
+            
+            // 按时间排序
+            allScores.sort((a, b) => (b.completedTime || 0) - (a.completedTime || 0));
+            console.log('[video] 全部项目查询完成，共', allScores.length, '条成绩');
+            return allScores;
+        }
+
+        // 查询单个项目
+        async function querySingleSport(uid, sportId) {
+            if (!uid || !sportId) return [];
+            
+            try {
+                const body = { uid: uid, offset: 1, pageSize: 100, order: "date", sportId: sportId };
+                console.log('[video] 查询单个项目:', sportId);
+                const response = await fetch(QUERY_BY_UID_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const result = await response.json();
+                if (result.code === 0) {
+                    return parseScoreResponse(result, uid);
+                }
+                return [];
+            } catch (err) {
+                console.error('[video] 查询失败:', err);
+                return [];
+            }
+        }
+
+        // 从本地数据库补充姓名和班级
+        async function enrichStudentInfo(scores) {
+            if (!window.electronAPI || !window.electronAPI.dbGetAll) return scores;
+            try {
+                const students = await window.electronAPI.dbGetAll();
+                const studentMap = new Map();
+                for (const s of students) studentMap.set(s.uid, s);
+                for (const score of scores) {
+                    const stu = studentMap.get(score.uid);
+                    if (stu) {
+                        if (stu.name) score.name = stu.name;
+                        score.className = stu.className || '-';
+                    }
+                }
+            } catch (e) { console.error('[video] 获取学生信息失败:', e); }
+            return scores;
+        }
+
+        // 从底库查询最近N天的成绩（含视频地址）
+        async function fetchRecentScoresFromRemote(days = 10) {
+            try {
+                const endTime = Date.now();
+                const startTime = endTime - days * 24 * 60 * 60 * 1000;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                const resp = await fetch(QUERY_SCORE_DATE_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal,
+                    body: JSON.stringify({ startTime, endTime })
+                });
+                clearTimeout(timeoutId);
+                const result = await resp.json();
+                if (result.code === 0 && result.data?.taskInfoScoreList) {
+                    const tasks = result.data.taskInfoScoreList;
+                    const scores = [];
+                    for (let task of tasks) {
+                        const taskInfo = task.task_info || {};
+                        const sportInfo = task.sport_info || {};
+                        const scoreInfo = task.score_info || {};
+                        const completedTime = taskInfo.task_completed_time;
+                        const sportId = sportInfo.sport_id;
+                        const scoreList = scoreInfo.score_list || [];
+                        const playbackUrls = scoreInfo.playback || [];
+                        const publicPlaybackUrls = scoreInfo.publicPlayback || [];
+                        const allPlaybackUrls = [...playbackUrls, ...publicPlaybackUrls];
+                        const evaluationReport = scoreInfo.evaluation_report || null;
+                        for (let score of scoreList) {
+                            scores.push({
+                                taskId: taskInfo.task_id,
+                                sportId: sportId,
+                                uid: score.uid,
+                                name: score.name || score.uid,
+                                duration: score.duration || 0,
+                                legal: score.legal || 0,
+                                illegal: score.illegal || 0,
+                                illegalDetail: score.illega_detail || [],
+                                scoreRecords: score.score_records || score.score_public_records || [],
+                                playbackUrls: allPlaybackUrls,
+                                evaluationReport: evaluationReport,
+                                time: completedTime ? new Date(completedTime).toLocaleString() : '-',
+                                completedTime: completedTime || 0
+                            });
+                        }
+                    }
+                    scores.sort((a, b) => (b.completedTime || 0) - (a.completedTime || 0));
+                    return scores.slice(0, 20);
+                }
+                return [];
+            } catch (e) {
+                console.error('[video] 获取远程最近成绩失败:', e);
+                return [];
+            }
+        }
+
+        // 按姓名查找UID（从本地数据库）
+        async function findUidsByName(name) {
+            const uids = [];
+            if (window.electronAPI && window.electronAPI.dbGetAll) {
+                try {
+                    const students = await window.electronAPI.dbGetAll();
+                    const kw = name.toLowerCase();
+                    for (const s of students) {
+                        if ((s.name && s.name.toLowerCase().includes(kw)) || (s.uid && s.uid.toLowerCase().includes(kw))) {
+                            uids.push(s.uid);
+                        }
+                    }
+                } catch(e) { console.error('查询本地学生失败:', e); }
+            }
+            return uids;
+        }
+
+        // 从本地 SQLite 读取最近成绩
+        async function loadLocalScores(limit = 20) {
+            if (!window.electronAPI || !window.electronAPI.scoreGetRecent) return [];
+            try {
+                const rows = await window.electronAPI.scoreGetRecent(limit);
+                return rows.map(r => ({
+                    uid: r.uid,
+                    name: r.name || r.uid,
+                    sportId: r.sport_id,
+                    duration: r.duration,
+                    legal: r.legal,
+                    illegal: r.illegal,
+                    className: r.class_name,
+                    time: r.score_time ? new Date(r.score_time).toLocaleString() : '-',
+                    completedTime: r.score_time ? new Date(r.score_time).getTime() : 0,
+                    playbackUrls: [],
+                    scoreRecords: [],
+                    illegalDetail: [],
+                    evaluationReport: null,
+                    source: r.source || '累计'
+                }));
+            } catch (e) {
+                console.error('[video] 读取本地成绩失败:', e);
+                return [];
+            }
+        }
+
+        let allScores = [], currentPage = 1, pageSize = 15;
+        const searchUid = document.getElementById('searchUid');
+        const searchName = document.getElementById('searchName');
+        const searchSport = document.getElementById('searchSport');
+        const searchBtn = document.getElementById('searchBtn');
+        const scoreTableBody = document.getElementById('scoreTableBody');
+        const resultCountSpan = document.getElementById('resultCount');
+        const paginationDiv = document.getElementById('pagination');
+        const imageGalleryDiv = document.getElementById('imageGallery');
+        const imageCountSpan = document.getElementById('imageCount');
+        const analysisContainer = document.getElementById('analysisContainer');
+        const mainVideo = document.getElementById('mainVideo');
+        const currentTitleSpan = document.getElementById('currentVideoTitle');
+        const currentMetaSpan = document.getElementById('currentVideoMeta');
+        const modal = document.getElementById('modal');
+        const modalImage = document.getElementById('modalImage');
+
+        function escapeHtml(str) { 
+            if (!str) return ''; 
+            return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); 
+        }
+        
+        function closeModal() { modal.style.display = 'none'; modalImage.src = ''; }
+        function openImage(url) { modal.style.display = 'flex'; modalImage.src = fixUrl(url); }
+        
+        window.toggleAnalysis = function() {
+            document.getElementById('analysisContainer').classList.toggle('collapsed');
+            document.getElementById('analysisToggleIcon').classList.toggle('collapsed');
+        };
+
+        function showAnalysis(record) {
+            if (!record) { 
+                analysisContainer.innerHTML = '<div class="empty-state">点击成绩记录查看规则分析</div>'; 
+                return; 
+            }
+            
+            let html = '';
+            
+            if (record.illegalDetail && record.illegalDetail.length) {
+                html += `<div class="analysis-section"><div class="analysis-title">⚠️ 动作分析/违规记录</div>`;
+                for (let v of record.illegalDetail) {
+                    let valueStr = v.value !== undefined && v.value !== null ? `${v.value}${v.unit || ''}` : '';
+                    let standardStr = v.standard ? ` (标准: ${v.standard})` : '';
+                    html += `<div class="violation-item">
+                        <span class="violation-name">${escapeHtml(v.name)}${valueStr ? '：' + valueStr : ''}</span>
+                        <span class="violation-times">${standardStr}</span>
+                    </div>`;
+                }
+                html += `</div>`;
+            }
+            
+            const scoreDisplay = getScoreDisplay(record.sportId, record.duration, record.legal);
+            html += `<div class="analysis-section"><div class="analysis-title">📈 成绩摘要</div>
+                <div class="analysis-grid">
+                    <div class="analysis-item"><div class="item-name">运动项目</div><div class="item-value">${escapeHtml(getSportName(record.sportId))}</div></div>
+                    <div class="analysis-item"><div class="item-name">成绩</div><div class="item-value">${escapeHtml(scoreDisplay)}</div></div>
+                    <div class="analysis-item"><div class="item-name">有效个数</div><div class="item-value">${record.legal || 0}</div></div>
+                    <div class="analysis-item"><div class="item-name">违规次数</div><div class="item-value">${record.illegal || 0}</div></div>
+                    <div class="analysis-item"><div class="item-name">完成时间</div><div class="item-value">${record.time || '-'}</div></div>
+                </div></div>`;
+            
+            analysisContainer.innerHTML = html || '<div class="empty-state">暂无规则分析数据</div>';
+        }
+
+        function showScoreDetail(record) {
+            if (!record) return;
+            
+            document.querySelectorAll('#scoreTable tbody tr').forEach(tr => tr.classList.remove('selected'));
+            const tr = document.querySelector(`#scoreTable tbody tr[data-task-id="${record.taskId}"]`);
+            if (tr) tr.classList.add('selected');
+            
+            const images = (record.scoreRecords || []).map(url => ({ url: fixUrl(url), type: '📸 抓拍' }));
+            imageCountSpan.innerText = images.length + '张';
+            if (images.length) {
+                imageGalleryDiv.innerHTML = images.map(img => `
+                    <div class="image-item" onclick="openImage('${escapeHtml(img.url)}')">
+                        <div class="image-thumb"><img src="${escapeHtml(img.url)}" onerror="this.parentElement.innerHTML='📸'"></div>
+                        <div class="image-info">
+                            <div class="image-title">${escapeHtml(record.name || record.uid)} - ${getSportName(record.sportId)}</div>
+                            <div class="image-time">${img.type} | ${record.time || ''}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                imageGalleryDiv.innerHTML = '<div class="empty-state">📭 暂无抓拍图片</div>';
+            }
+            
+            showAnalysis(record);
+        }
+
+        function playVideo(url, title) {
+            if (!url) { 
+                alert('该成绩暂无视频'); 
+                return; 
+            }
+            const fixed = fixUrl(url);
+            mainVideo.src = fixed;
+            mainVideo.load();
+            mainVideo.play().catch(e => console.log('自动播放失败:', e));
+            currentTitleSpan.innerText = `🎬 正在播放: ${title}`;
+            currentMetaSpan.innerText = `📹 ${fixed}`;
+        }
+
+        function renderScoreTable() {
+            if (!allScores.length) {
+                scoreTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">暂无数据</td></tr>';
+                resultCountSpan.innerText = '0条';
+                return;
+            }
+            
+            const start = (currentPage-1)*pageSize;
+            const pageData = allScores.slice(start, start+pageSize);
+            resultCountSpan.innerText = allScores.length + '条';
+            
+            let html = '';
+            for (let item of pageData) {
+                const sportName = getSportName(item.sportId);
+                const scoreDisplay = getScoreDisplay(item.sportId, item.duration, item.legal);
+                const level = getLevel(item.sportId, item.legal, item.duration);
+                const videoUrl = item.playbackUrls && item.playbackUrls.length > 0 ? fixUrl(item.playbackUrls[0]) : '';
+                
+                html += `<tr data-task-id="${escapeHtml(item.taskId)}">
+                    <td>${item.time || '-'}</td>
+                    <td>${escapeHtml(item.uid)}</td>
+                    <td>${escapeHtml(item.name)}</td>
+                    <td>${escapeHtml(item.className || '-')}</td>
+                    <td>${escapeHtml(sportName)}</td>
+                    <td><strong>${scoreDisplay}</strong></td>
+                    <td><span class="badge ${getBadgeClass(level)}">${level}</span></td>
+                    <td>${videoUrl ? `<button class="btn-video" onclick="event.stopPropagation();playVideo('${escapeHtml(videoUrl)}','${escapeHtml(item.name)} - ${sportName}')">▶ 播放</button>` : '<span style="color:#999;">无视频</span>'}</td>
+                 </tr>`;
+            }
+            scoreTableBody.innerHTML = html;
+            
+            document.querySelectorAll('#scoreTable tbody tr').forEach(tr => {
+                tr.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'BUTTON') return;
+                    const taskId = tr.getAttribute('data-task-id');
+                    const record = allScores.find(s => s.taskId === taskId);
+                    if (record) showScoreDetail(record);
+                });
+            });
+            
+            const totalPages = Math.ceil(allScores.length / pageSize);
+            paginationDiv.innerHTML = totalPages > 1 ? 
+                Array.from({length: totalPages}, (_, i) => `<button class="page-btn ${i+1===currentPage ? 'active' : ''}" onclick="goToPage(${i+1})">${i+1}</button>`).join('') : '';
+        }
+
+        window.goToPage = function(p) { 
+            currentPage = p; 
+            renderScoreTable(); 
+        };
+        
+        window.playVideo = playVideo;
+        window.openImage = openImage;
+
+        async function performQuery() {
+            const uid = searchUid.value.trim();
+            const name = searchName.value.trim();
+            const sportId = searchSport.value;
+            
+            // 无输入时：从底库获取最近10天成绩（含视频地址）
+            if (!uid && !name) {
+                scoreTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;"><div class="loading">⏳ 正在加载最近成绩...</div></td></tr>';
+                let scores = await fetchRecentScoresFromRemote(10);
+                if (scores.length === 0) {
+                    // 底库离线，fallback 到本地缓存
+                    scores = await loadLocalScores(20);
+                }
+                await enrichStudentInfo(scores);
+                allScores = scores;
+                currentPage = 1;
+                renderScoreTable();
+                if (allScores.length === 0) {
+                    scoreTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">请输入学号或姓名后点击查询</td></tr>';
+                    currentTitleSpan.innerText = '🎬 暂无视频';
+                    currentMetaSpan.innerText = '无成绩记录';
+                    mainVideo.src = '';
+                } else {
+                    showScoreDetail(allScores[0]);
+                    const firstVideo = allScores.find(s => s.playbackUrls && s.playbackUrls.length > 0);
+                    if (firstVideo) {
+                        const url = fixUrl(firstVideo.playbackUrls[0]);
+                        currentTitleSpan.innerText = `🎬 ${firstVideo.name || firstVideo.uid} - ${getSportName(firstVideo.sportId)}`;
+                        currentMetaSpan.innerText = `📹 点击「播放视频」按钮开始播放`;
+                        mainVideo.src = url;
+                        mainVideo.load();
+                    } else {
+                        currentTitleSpan.innerText = `🎬 ${allScores[0].name || allScores[0].uid} - ${getSportName(allScores[0].sportId)}`;
+                        currentMetaSpan.innerText = '该记录暂无视频';
+                        mainVideo.src = '';
+                    }
+                }
+                return;
+            }
+            
+            scoreTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;"><div class="loading">⏳ 查询中...</div></td></tr>';
+            
+            console.log('[video] 查询条件 - uid:', uid, 'name:', name, 'sportId:', sportId);
+            
+            let scores = [];
+            
+            if (uid) {
+                if (sportId && sportId !== '') {
+                    // 查询单个项目
+                    scores = await querySingleSport(uid, sportId);
+                } else {
+                    // 查询全部项目（遍历所有运动类型）
+                    scores = await queryAllSports(uid);
+                }
+            } else if (name) {
+                const uids = await findUidsByName(name);
+                console.log('[video] 找到匹配的UID:', uids);
+                for (const u of uids.slice(0, 10)) {
+                    let userScores;
+                    if (sportId && sportId !== '') {
+                        userScores = await querySingleSport(u, sportId);
+                    } else {
+                        userScores = await queryAllSports(u);
+                    }
+                    scores.push(...userScores);
+                }
+            }
+            
+            // 按姓名二次过滤
+            if (name && scores.length) {
+                scores = scores.filter(s => (s.name || '').toLowerCase().includes(name.toLowerCase()) || (s.uid || '').toLowerCase().includes(name.toLowerCase()));
+            }
+            
+            // 补充姓名和班级
+            await enrichStudentInfo(scores);
+            
+            // 按时间排序
+            scores.sort((a, b) => (b.completedTime || 0) - (a.completedTime || 0));
+            
+            allScores = scores;
+            currentPage = 1;
+            renderScoreTable();
+            
+            if (scores.length) {
+                showScoreDetail(scores[0]);
+                if (scores[0].playbackUrls && scores[0].playbackUrls.length) {
+                    const firstUrl = fixUrl(scores[0].playbackUrls[0]);
+                    currentTitleSpan.innerText = `🎬 ${scores[0].name || scores[0].uid} - ${getSportName(scores[0].sportId)}`;
+                    currentMetaSpan.innerText = `📹 点击「播放视频」按钮开始播放`;
+                    mainVideo.src = firstUrl;
+                    mainVideo.load();
+                }
+            } else {
+                currentTitleSpan.innerText = '🎬 未找到成绩';
+                currentMetaSpan.innerText = '请调整查询条件';
+                mainVideo.src = '';
+            }
+        }
+
+        searchBtn.addEventListener('click', performQuery);
+        searchUid.addEventListener('keypress', e => { if (e.key === 'Enter') performQuery(); });
+        searchName.addEventListener('keypress', e => { if (e.key === 'Enter') performQuery(); });
+        modal.addEventListener('click', closeModal);
+        
+        window.addEventListener('load', async () => {
+            console.log('[video] 页面加载完成，加载最近成绩记录');
+            let scores = await fetchRecentScoresFromRemote(10);
+            if (scores.length === 0) {
+                scores = await loadLocalScores(20);
+            }
+            await enrichStudentInfo(scores);
+            if (scores.length > 0) {
+                allScores = scores;
+                currentPage = 1;
+                renderScoreTable();
+                showScoreDetail(allScores[0]);
+            }
+        });
+    </script>
+    <script>
+        (function(){
+            var el = document.getElementById('schoolNameDisplay');
+            if(el){
+                var x = new XMLHttpRequest();
+                x.open('GET','../../config.json',true);
+                x.onload = function(){
+                    if(x.status === 200){
+                        try{ var c = JSON.parse(x.responseText); el.textContent = c.schoolName || ''; }catch(e){}
+                    }
+                };
+                x.send();
+            }
+        })();
+    </script>
+</body>
+</html>
