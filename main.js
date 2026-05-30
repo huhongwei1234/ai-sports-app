@@ -427,7 +427,7 @@ ipcMain.handle('app:getLogoPath', async () => {
     if (fs.existsSync(externalLogoPath)) {
         return 'res://logo.jpg';
     }
-    return '../../logo.jpg';
+    return '../logo.jpg';
 });
 
 app.whenReady().then(async () => {
